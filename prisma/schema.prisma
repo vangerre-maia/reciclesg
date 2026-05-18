@@ -1,0 +1,108 @@
+generator client {
+  provider        = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum Role {
+  GESTOR
+  ASSOCIACAO
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role     @default(ASSOCIACAO)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  associacao Associacao?
+  sessions   Session[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Associacao {
+  id         String   @id @default(cuid())
+  nome       String
+  municipio  String
+  populacao  Int?
+  userId     String   @unique
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  avaliacoes Avaliacao[]
+}
+
+model Avaliacao {
+  id           String   @id @default(cuid())
+  associacaoId String
+  dataRef      DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Etapa 3: Modelo de cálculo
+  modeloCalculo String // "detalhado" | "simplificado"
+
+  // Etapa 4: Informações municipais
+  geracaoPerCapita Float  @default(1.05)
+  taxaReciclaveis  Float  @default(30)
+  repasse          Float? // valor do repasse público (R$)
+
+  // Etapa 5: Associação
+  catadoresTotal  Int
+  catadoresColeta Int?
+  salarioMinimo   Float
+  despesaMensal   Float?
+
+  // Etapa 7: Totais consolidados
+  massaColetada       Float
+  massaComercializada Float
+
+  // Resultados calculados (cache)
+  taxaRecuperacao        Float?
+  rejeito                Float?
+  receita                Float?
+  receitaLiquida         Float?
+  produtividadeCatador   Float?
+  rendaTotalCatador      Float?
+  percSalario            Float?
+  impactoClimaticoTotal  Float?
+
+  associacao Associacao  @relation(fields: [associacaoId], references: [id], onDelete: Cascade)
+  materiais  Material[]
+  beneficios Beneficio[]
+}
+
+model Material {
+  id          String @id @default(cuid())
+  avaliacaoId String
+  nome        String
+  massa       Float
+  precoPorKg  Float
+
+  avaliacao Avaliacao @relation(fields: [avaliacaoId], references: [id], onDelete: Cascade)
+}
+
+model Beneficio {
+  id          String @id @default(cuid())
+  avaliacaoId String
+  nome        String
+  valor       Float
+  quantidade  Int    @default(1)
+
+  avaliacao Avaliacao @relation(fields: [avaliacaoId], references: [id], onDelete: Cascade)
+}
